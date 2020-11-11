@@ -1,0 +1,18 @@
+Both the Master and datacompression versions of this program work in a similar manner. 
+The main function setups the system clock and then immidieatly delays to allow
+for the voltages on the ADS1299 to stabilize. Next the pins that are gonna be used 
+to control the ADS1299 are set up. Then the SPI peripheral is setup on the MSP.
+The ADS1299 is now set up for reading external signals. After the ADS1299 is setup 
+the USB is setup. Next we enter the main loop for the program. The MSP is trapped 
+in an empty while loop, waiting for a computer to tell it to start sampling. 
+In the meanwhile changes to the ADS1299 can be made. Once the computer tells it 
+to start it then checks the data rate of the ADS1299 and sets up a couple of variables
+that allow for usb transfers to happen easily. There is then a delay as when in daisy
+chain it takes a little longer for data acquisition to start on the ADS1299. 
+Here is where the two programs slightly differ. The master program just acquires data 
+from the ADS1299 and immidiately puts it in the USB buffer. It repeats this until the computer
+tell it to stop acquisition.
+The data compression version acquires the first sample, stores it calls it the base and transfers it to 
+the computer. Then it starts acquiring the next samples but it does not transmit them
+it. Instead it takes the difference between this new sample and the base and transmit
+it. It repeats this process until the computer says to stop data acquisition. 
