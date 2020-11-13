@@ -1,10 +1,3 @@
-/*
- * ADS1299.c
- *
- *  Created on: Nov 1, 2019
- *      Author: Gerardo Barreras
- */
-
 #include <stdbool.h>
 #include <stdint.h>
 #include "ti/devices/msp432e4/driverlib/driverlib.h"
