@@ -1,3 +1,10 @@
+/*
+ * ADS1299.h
+ *
+ *  Created on: Nov 1, 2019
+ *      Author: Gerardo Barreras
+ */
+
 #ifndef ADS1299_H_
 #define ADS1299_H_
 
@@ -32,6 +39,10 @@ void ADS1299_init(uint32_t ui32SysClock);
 //Register Commands
 #define RREG_S  0x20    // Command to Read register
 #define WREG_S  0x40    //Command to Write to Register
+
+/*LIST OF REGISTERS FOR ADS1299 page 44*/
+/*Read Only ID Registers*/
+#define ID          0x00
 
 /*Global Settings Across Channels*/
 #define CONFIG1     0x01
