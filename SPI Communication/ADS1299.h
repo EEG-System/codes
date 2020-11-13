@@ -1,10 +1,3 @@
-/*
- * ADS1299.h
- *
- *  Created on: Nov 1, 2019
- *      Author: Gerardo Barreras
- */
-
 #ifndef ADS1299_H_
 #define ADS1299_H_
 
