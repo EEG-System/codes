@@ -1,170 +1,259 @@
+#include <stdbool.h>
+#include <stdint.h>
+#include <ti/devices/msp432e4/driverlib/driverlib.h>
+#include "ti/usblib/msp432e4/usblib.h"
+#include "ti/usblib/msp432e4/usb-ids.h"
+#include "ti/usblib/msp432e4/device/usbdevice.h"
+#include "ti/usblib/msp432e4/device/usbdbulk.h"
 #include "ADS1299.h"
 
-#define CS_HIGH    MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_3, GPIO_PIN_3)
-#define CS_LOW     MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_3, 0)
+#define CS_LOW     GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_2, 0x00)
+#define CS_HIGH    GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_2, GPIO_PIN_2)
 
-void spi_ads_write(uint8_t *data, uint32_t size);
-void spi_ads_read(uint8_t *data, uint32_t size);
-void ADS1299_test_signal(void);
-
-
-/*     -> START
- *     -> RST
+/*
+ * PL0 -> START
+ * PL1 -> RESET
+ * PL2 -> CS
  * PL3 -> DRDY
- * PA2 -> SCLK
- * PA3 -> CS
- * PA4 -> MOSI
- * PA5 -> MISO
+ * PA2 -> SCKL
+ * PA4 -> DIN
+ * PA5 -> DOUT
  */
-void ADS1299_init(uint32_t g_ui32SysClock)
-{
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
-    while(!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOL)));
 
-    //DRDY pin, this is to wait for data conversion to finish
-    MAP_GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_3);
+//ADS functions
+uint8_t transfer(uint8_t Byte1) //SPI transaction
+{
+    uint32_t x;
+    MAP_SSIDataPut(SSI0_BASE, Byte1);
+    MAP_SSIDataGet(SSI0_BASE, &x);
+    return x;
+}
+
+void ReadREG(uint8_t Start) //Read value from a register
+{
+    uint8_t opcode;
+    CS_LOW;
+    opcode = Start + RREG_S;
+    transfer(opcode);
+    SysCtlDelay(80); //Delay added to allow ADS to decode command
+    transfer(0x00);
+    SysCtlDelay(80);
+    Registers[Start] = transfer(0x00);
+    CS_HIGH;
+    return;
+}
+void ReadREGS(uint8_t Start, uint8_t End)   //Read value from multiple registers
+{
+    uint32_t i;
+    uint8_t opcode;
+    CS_LOW;
+    opcode = Start + RREG_S;
+    transfer(opcode);
+    SysCtlDelay(80); //Delay added to allow ADS to decode command
+    transfer(End);
+    SysCtlDelay(80);
+    for (i = 0; i <= End; i++)
+    {
+        Registers[Start + i] = transfer(0x00);
+        SysCtlDelay(80);
+    }
+    CS_HIGH;
+    return;
+}
+
+void WriteREG(uint8_t Start, uint8_t Data) //Write data to a register
+{
+    uint32_t opcode = Start + WREG_S;
+    CS_LOW;
+    transfer(opcode);
+    SysCtlDelay(80);
+    transfer(0x00);
+    SysCtlDelay(80);
+    transfer(Data);
+    SysCtlDelay(80);
+    transfer(0x00);
+    CS_HIGH;
+    return;
+}
+
+void WriteREGS(uint8_t Start, uint8_t End, uint8_t Data) //Write same data to multiple registers.
+{
+    uint32_t opcode = Start + WREG_S;
+    int i;
+    CS_LOW;
+    transfer(opcode);
+    SysCtlDelay(80); //Delay added to allow ADS to decode command
+    transfer(End);
+    SysCtlDelay(80);
+    for (i = 0; i <= (End - Start); i++)
+    {
+        transfer(Data);
+        SysCtlDelay(80);
+    }
+    transfer(0x00);
+    CS_HIGH;
+    return;
+}
+
+void _RESET() //Command to Reset ADS (Can be used instead of pins)
+{
+    CS_LOW;
+    transfer(RESET);
+    SysCtlDelay(353);
+    CS_HIGH;
+    return;
+}
+
+void _SDATAC()  //Command to allow modification of registers on ADS1299
+{
+    CS_LOW;
+    transfer(SDATAC);
+    SysCtlDelay(120);
+    CS_HIGH;
+    return;
+}
+void _RDATAC() //Command to be able to exit register modification and start acquiring samples
+{
+    CS_LOW;
+    transfer(RDATAC);
+    SysCtlDelay(120);
+    CS_HIGH;
+    return;
+}
+
+void _START() //Command to start sample acquisition. (Can be used instead of pins)
+{
+    CS_LOW;
+    transfer(START);
+    CS_HIGH;
+    return;
+}
+
+void _STOP() //Command to stop sample acquisition. (Can be used instead of pins)
+{
+    CS_LOW;
+    transfer(STOP);
+    CS_HIGH;
+    return;
+}
+
+void ADSTEST(uint32_t numsamples, uint32_t bytesSend) //Command that acquires samples from ADS
+{
+//    tUSBRingBufObject sTxRing;
+//    int i, j, k;
+//    int samplecounter = 0;
+//    USBBufferInfoGet(&g_sTxBuffer, &sTxRing);
+//    // How much space is there in the transmit buffer?
+//    uint32_t ui32Space = USBBufferSpaceAvailable(&g_sTxBuffer);
+//    uint32_t ui32WriteIndex = sTxRing.ui32WriteIndex;
+//    if (ui32Space == BULK_BUFFER_SIZE - 1)
+//    {
+//        TXComplete = false;
+//
+//        while (samplecounter < numsamples)
+//        {
+//            while (GPIOPinRead(GPIO_PORTL_BASE, GPIO_PIN_3)); //Wait for DRDY
+//
+//            for (k = 0; k < NumDaisy; k++)
+//            {
+//                GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_2, 0x00); //cs low
+//                //Status Bytes
+//                for (i = 0; i < 3; i++)//Status Bytes
+//                {
+//                    g_pui8USBTxBuffer[ui32WriteIndex] = transfer(0x00);
+//                    ui32WriteIndex++;
+//                    ui32WriteIndex =
+//                            (ui32WriteIndex == BULK_BUFFER_SIZE) ?
+//                                    0 : ui32WriteIndex;
+//                }
+//                for (i = 0; i < 8; i++)
+//                {
+//                    for (j = 0; j < 3; j++)
+//                    {
+//                        g_pui8USBTxBuffer[ui32WriteIndex] = transfer(0x00);
+//                        ui32WriteIndex++;
+//                        ui32WriteIndex =
+//                                (ui32WriteIndex == BULK_BUFFER_SIZE) ?
+//                                        0 : ui32WriteIndex;
+//                    }
+//                }
+//                GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_2, GPIO_PIN_2); //cs hgh
+//            }
+//            samplecounter++;
+//        }
+//        USBBufferDataWritten(&g_sTxBuffer, bytesSend);
+//    }
+    return;
+}
+
+void TEST() //Setup ADS to acquire internal test signals
+{
+    WriteREG(CONFIG2, 0xD0);       //Modify Config2 for test signals
+    WriteREGS(CH1SET, CH8SET, Registers[5] | 0x05); //Modify all channels for test signals
+    ReadREG(CONFIG2);              //Read back written values
+    ReadREGS(CH1SET, CH8SET);
+    return;
+}
+
+void NORM() //Setup ADS for normal operation
+{
+    WriteREG(CONFIG2, 0xC0);       //Modify Config2 for normal signals
+    WriteREGS(CH1SET, CH8SET, Registers[5] & 0xF8);
+    ReadREG(CONFIG2);              //Read back written values
+    ReadREGS(CH1SET, CH8SET);
+}
+
+void ADS1299_init(uint32_t ui32SysClock)
+{
+    uint32_t bytesSend = 0;
+
+    //ADS Stuff Setup
+    delay_ms(128); //128ms delay needed to ensure the voltages on ADS1299 have stabilized
+
+    //Port that is going to be used to toggle a few of the pins.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOL))
+    {
+    }
+    GPIOPinTypeGPIOOutput(GPIO_PORTL_BASE, GPIO_PIN_0); //START pin
+    GPIOPinTypeGPIOOutput(GPIO_PORTL_BASE, GPIO_PIN_1); //RESET pin
+    GPIOPinTypeGPIOOutput(GPIO_PORTL_BASE, GPIO_PIN_2); //CS pin
+    GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_3);  //DRDY pin
+
+    GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_1, GPIO_PIN_1); //Take RESET high
+    GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_2, GPIO_PIN_2); //Take CS high
 
     /* Enable clocks to GPIO Port A and configure pins as SSI */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-    while(!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOA)));
+    while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOA)))
+    {
+    }
 
-    //CS pin, manual trigger, disable SPI communication to ADS
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_3);
-    MAP_GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_3, GPIO_PIN_3);
-
-    MAP_GPIOPinConfigure(GPIO_PA2_SSI0CLK);
-    MAP_GPIOPinConfigure(GPIO_PA4_SSI0XDAT0);
-    MAP_GPIOPinConfigure(GPIO_PA5_SSI0XDAT1);
-    MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, (GPIO_PIN_2 | GPIO_PIN_4 | GPIO_PIN_5));
+    MAP_GPIOPinConfigure(GPIO_PA2_SSI0CLK); // PA2 -> SCLK
+    MAP_GPIOPinConfigure(GPIO_PA3_SSI0FSS);
+    MAP_GPIOPinConfigure(GPIO_PA4_SSI0XDAT0); // PA4 -> DIN
+    MAP_GPIOPinConfigure(GPIO_PA5_SSI0XDAT1); // PA5 -> DOUT
+    MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, (GPIO_PIN_2 | GPIO_PIN_3 |
+    GPIO_PIN_4 | GPIO_PIN_5));
 
     /* Enable the clock to SSI-0 module and configure the SSI Master */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
-    while(!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_SSI0)));
+    while (!(MAP_SysCtlPeripheralReady(SYSCTL_PERIPH_SSI0)))
+    {
+    }
 
-    MAP_SSIConfigSetExpClk(SSI0_BASE, g_ui32SysClock, SSI_FRF_MOTO_MODE_1, SSI_MODE_MASTER, (g_ui32SysClock/8), 8);
+    MAP_SSIConfigSetExpClk(SSI0_BASE, ui32SysClock, SSI_FRF_MOTO_MODE_1, //15 MHz clock, clock phase 0 polarity 1
+    SSI_MODE_MASTER,
+                          (ui32SysClock / 8), 8);
     MAP_SSIEnable(SSI0_BASE);
 
-    //128ms delay needed to ensure the voltages on ADS1299 have stabilized
-    SysCtlDelay(5120000);
+    /* Flush the Receive FIFO */
+    while (MAP_SSIDataGetNonBlocking(SSI0_BASE, &bytesSend));
+    //SPI setup is complete
 
+    _RESET();
+    _SDATAC(); //Enter SDATAC and don't exit until told to by computer
+    ReadREGS(0x00, 0x17); //Read All Registers
 }
 
-void ADS1299_cmd(uint8_t cmd)
-{
-    CS_LOW;
-
-    spi_ads_write(&cmd, 1);
-
-    CS_HIGH;
-}
-
-void ADS1299_wreg(uint8_t reg, uint8_t data)
-{
-    uint8_t cmd[2] = {WREG | reg, 0x01};
-
-    CS_LOW;
-
-    //Send command first
-    spi_ads_write(cmd, 2);
-    SysCtlDelay(80);
-
-    //Then send data
-    spi_ads_write(&data, 1);
-    SysCtlDelay(80);
-
-    CS_HIGH;
-}
-
-uint8_t ADS1299_rreg(uint8_t reg)
-{
-    uint8_t cmd[2] = {RREG | reg, 0x01};
-    uint8_t data;
-
-    CS_LOW;
-
-    //Send command first
-    spi_ads_write(cmd, 2);
-    SysCtlDelay(80);
-
-    //Then receive data data
-    spi_ads_read(&data, 1);
-    SysCtlDelay(80);
-
-    CS_HIGH;
-
-    return data;
-}
-
-/*[(24 status bits + 24 bits × 8 channels) = 216 bits].
- * The format of the 24 status bits is: (1100 + LOFF_STATP + LOFF_STATN + bits[4:7] of the GPIO register*/
-
-/*4 Bytes of status data + 24 bytes of ADC data*/
-
-uint8_t *ADS1299_read_data(void)
-{
-    static uint8_t adc_data[28];
-
-    //Wait for data to be ready
-    while(MAP_GPIOPinRead(GPIO_PORTL_BASE, GPIO_PIN_3) == GPIO_PIN_3);
-    __delay_cycles(10);
-
-    CS_LOW;
-
-    spi_ads_read(adc_data, 28);
-
-    CS_HIGH;
-
-    return adc_data;
-}
-
-/*LOW LEVEL COMMUNICATION FUNCTIONS*/
-void spi_ads_write(uint8_t *data, uint32_t size)
-{
-    uint32_t i;
-    for(i = 0; i < size; i++)
-    {
-        while(MAP_SSIBusy(SSI0_BASE));
-        MAP_SSIDataPut(SSI0_BASE, data[i]);
-    }
-}
-
-void spi_ads_read(uint8_t *data, uint32_t size)
-{
-    uint32_t i;
-    for(i = 0; i < size; i++)
-    {
-        while(MAP_SSIBusy(SSI0_BASE));
-        MAP_SSIDataGet(SSI0_BASE, (uint32_t*)&data[i]);
-    }
-}
-
-void ADS1299_test_signal(void) {
-    /*
-     * Following page 2 of
-     * https://github.com/EEG-System/additional-documents/blob/main/ADS_Documentation_Notes.pdf
-     */
-    ADS1299_wreg(CONFIG1, 0x96); // DR = 250 SPS
-    ADS1299_wreg(CONFIG2, 0xD0); // T.S. Generated Internally.
-    ADS1299_wreg(CONFIG3, 0xE0); // Enable Internal reference buffer.
-
-    /* Testing with one channel */
-    ADS1299_wreg(CH1SET, 0x65);
-
-
-}
-void ADS1299_short_test(void) {
-
-    //Set device for DR = f_mod/4096
-    ADS1299_wreg(CONFIG1, 0x96);
-    ADS1299_wreg(CONFIG2, 0xC0);
-
-    //Set all channels to input short
-    ADS1299_wreg(CH1SET, 0x01);
-    ADS1299_wreg(CH2SET, 0x01);
-    ADS1299_wreg(CH3SET, 0x01);
-    ADS1299_wreg(CH4SET, 0x01);
-    ADS1299_wreg(CH5SET, 0x01);
-    ADS1299_wreg(CH6SET, 0x01);
-    ADS1299_wreg(CH7SET, 0x01);
-    ADS1299_wreg(CH8SET, 0x01);
-}
+//end of ADS functions
