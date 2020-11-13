@@ -3,28 +3,42 @@
 
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
 
-/*LIST OF COMMANDS FOR ADS1299 page 40*/
-#define WAKEUP      0x02
-#define STANDBY     0x04
-#define RESET       0x06
-#define START       0x08
-#define STOP        0x0A
+uint8_t transfer(uint8_t Byte1);
+void ReadREG(uint8_t Start);
+void ReadREGS(uint8_t Start, uint8_t End);
+void WriteREG(uint8_t Start, uint8_t Data);
+void WriteREGS(uint8_t Start, uint8_t End, uint8_t Data);
+void _RESET();
+void _SDATAC();
+void _START();
+void ADSTEST(uint32_t numsamples, uint32_t bytesSend);
+void _STOP();
+void _RDATAC();
+void TEST();
+void NORM();
+void ADS1299_init(uint32_t ui32SysClock);
 
-#define RDATAC      0x10
-#define SDATAC      0x11
-#define RDATA       0x12
+//All of these next commands are SPI commands
 
-#define RREG        0x20
-#define WREG        0x40
+//System Commands
+#define RESET   0x06    //Command to reset the ADS
+#define START   0x08    //Command to Start samples
+#define STOP    0x0A    //Command to Stop samples
 
-/*LIST OF REGISTERS FOR ADS1299 page 44*/
-/*Read Only ID Registers*/
-#define ID          0x00
+//Data Read Commands
+#define SDATAC  0x11   //Command to stop data continuous
+#define RDATAC  0x10   //Command to read data continuous
+
+//Register Commands
+#define RREG_S  0x20    // Command to Read register
+#define WREG_S  0x40    //Command to Write to Register
+
 /*Global Settings Across Channels*/
 #define CONFIG1     0x01
 #define CONFIG2     0x02
 #define CONFIG3     0x03
 #define LOFF        0x04
+
 /*Channel-Specific Settings*/
 #define CH1SET      0x05
 #define CH2SET      0x06
@@ -39,19 +53,13 @@
 #define LOFF_SENSP  0x0F
 #define LOFF_SENSN  0x10
 #define LOFF_FLIP   0x11
-/*Lead-Off Status Registers (Read-Only Registers)*/
-#define LOFF_STATP  0x12
-#define LOFF_STATN  0x13
-/*GPIO and OTHER Registers*/
-#define GPIO        0x14
-#define MISC1       0x15
-#define MISC2       0x16
-#define CONFIG4     0x17
 
-void ADS1299_init(uint32_t);
-void ADS1299_cmd(uint8_t cmd);
-void ADS1299_wreg(uint8_t reg, uint8_t data);
-uint8_t ADS1299_rreg(uint8_t reg);
-uint8_t *ADS1299_read_data(void);
+extern uint8_t Registers[24];
+extern uint32_t NumDaisy;
+extern bool TXComplete;
+
+// Delay Functions assuming 120 MHz
+#define delay_ms(x)     __delay_cycles((long) x* 120000)
+#define delay_us(x)     __delay_cycles((long) x* 120)
 
 #endif /* ADS1299_H_ */
