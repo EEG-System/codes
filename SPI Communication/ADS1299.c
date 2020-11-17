@@ -140,11 +140,11 @@ void _STOP() //Command to stop sample acquisition. (Can be used instead of pins)
     return;
 }
 
-void ADS1299_read_data(NumDaisy)
+void ADS1299_read_data(uint8_t NumDaisy)
 {
-    static uint32_t adc_data[28];
-    int i, j, k, index;
-    int samplecounter = 0;
+    int i, j, k, numSamples, bytesSend;
+    int sampleCounter = 0;
+    int index = 0;
 
     //Setup is over so enter Read data continuous
     _RDATAC();
@@ -179,7 +179,7 @@ void ADS1299_read_data(NumDaisy)
     }
     //Increase the number of bytes to include the status bytes
     bytesSend += (3 * numSamples);
-    //Increase the number of bytes depending on how many ADS1299 are conenected.
+    //Increase the number of bytes depending on how many ADS1299 are connected.
     bytesSend *= NumDaisy;
     //Take Start high (Start Conversions)
     START_HIGH;
@@ -198,7 +198,7 @@ void ADS1299_read_data(NumDaisy)
             //Status Bytes
             for(j=0;j<3;j++)
             {
-                adc_data[index] = transfer(0x00);
+                ads_data[index] = transfer(0x00);
                 index++;
             }
 
@@ -206,7 +206,7 @@ void ADS1299_read_data(NumDaisy)
             {
                 for(k=0;k<3;k++)
                 {
-                    adc_data[index] = transfer(0x00);
+                    ads_data[index] = transfer(0x00);
                     index++;
                 }
             }

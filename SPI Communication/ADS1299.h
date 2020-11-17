@@ -17,6 +17,7 @@ void _RDATAC();
 void TEST();
 void NORM();
 void ADS1299_init(uint32_t ui32SysClock);
+void ADS1299_read_data(uint8_t NumDaisy);
 
 //All of these next commands are SPI commands
 
@@ -59,7 +60,8 @@ void ADS1299_init(uint32_t ui32SysClock);
 #define LOFF_FLIP   0x11
 
 extern uint8_t Registers[24];
-extern uint32_t NumDaisy;
+extern uint8_t NumDaisy;
+extern uint32_t ads_data[28];
 extern bool TXComplete;
 
 // Delay Functions assuming 120 MHz
