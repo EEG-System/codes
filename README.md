@@ -21,14 +21,20 @@ git push
 git pull
 ```
 ```bash
-git branch						 			// view branches
-git checkout -b hola					// create branch hola
-git checkout hola						// move to branch hola
+// view branches
+git branch
+// create branch hola
+git checkout -b hola
+// move to branch hola
+git checkout hola
 ```
 ```bash
-git push origin --delete hola 	// delete remote branch hola
-git branch -d hola 					// delete local branch hola
+// delete remote branch hola
+git push origin --delete hola
+// delete local branch hola
+git branch -d hola 					       
 ```
 ```
-git merge hola						// merge changes from branch hola
+// merge changes from branch hola
+git merge hola					     	
 ```
