@@ -11,19 +11,31 @@ This section will be where to upload code.
 ### Useful Github commands
 
 `$ git clone <git url>`
+
 `$ git status`
+
 `$ git add <file>`
+
 `$ git commit -m "message"`
+
 `$ git push`
+
 
 `$ git pull`
 
+
 `$ git branch		// view branches`
+
 `$ git checkout -b hola 	// create branch hola`
+
 `$ git checkout hola 	// move to branch hola`
 
+
+
 `$ git push origin --delete hola 	// delete remote branch hola`
+
 `$ git branch -d hola 		// delete local branch hola`
+
 
 
 `$ git merge hola		// merge changes from branch hola`
