@@ -6,6 +6,7 @@
 #include "ti/usblib/msp432e4/device/usbdevice.h"
 #include "ti/usblib/msp432e4/device/usbdbulk.h"
 #include "ADS1299.h"
+#include "usb_serial.h"
 
 #define CS_LOW     GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_2, 0x00)
 #define CS_HIGH    GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_2, GPIO_PIN_2)
@@ -16,7 +17,7 @@
 /*
  * PL0 -> START
  * PL1 -> RESET
- * PL2 -> CS
+ * PL2 -> CLKSEL
  * PL3 -> DRDY
  * PA2 -> SCKL
  * PA4 -> DIN
@@ -32,18 +33,21 @@ uint8_t transfer(uint8_t Byte1) //SPI transaction
     return x;
 }
 
-void ReadREG(uint8_t Start) //Read value from a register
+uint8_t ReadREG(uint8_t Start) //Read value from a register
 {
     uint8_t opcode;
     CS_LOW;
+
     opcode = Start + RREG_S;
     transfer(opcode);
-    SysCtlDelay(80); //Delay added to allow ADS to decode command
+    //Delay added to allow ADS to decode command
+    delay_us(2);
     transfer(0x00);
-    SysCtlDelay(80);
+    delay_us(2);
     Registers[Start] = transfer(0x00);
+
     CS_HIGH;
-    return;
+    return Registers[Start];
 }
 void ReadREGS(uint8_t Start, uint8_t End)   //Read value from multiple registers
 {
@@ -52,13 +56,14 @@ void ReadREGS(uint8_t Start, uint8_t End)   //Read value from multiple registers
     CS_LOW;
     opcode = Start + RREG_S;
     transfer(opcode);
-    SysCtlDelay(80); //Delay added to allow ADS to decode command
+    //Delay added to allow ADS to decode command
+    delay_us(2);
     transfer(End);
-    SysCtlDelay(80);
+    delay_us(2);
     for (i = 0; i <= End; i++)
     {
         Registers[Start + i] = transfer(0x00);
-        SysCtlDelay(80);
+        delay_us(2);
     }
     CS_HIGH;
     return;
@@ -69,11 +74,11 @@ void WriteREG(uint8_t Start, uint8_t Data) //Write data to a register
     uint32_t opcode = Start + WREG_S;
     CS_LOW;
     transfer(opcode);
-    SysCtlDelay(80);
+    delay_us(2);
     transfer(0x00);
-    SysCtlDelay(80);
+    delay_us(2);
     transfer(Data);
-    SysCtlDelay(80);
+    delay_us(2);
     transfer(0x00);
     CS_HIGH;
     return;
@@ -85,13 +90,14 @@ void WriteREGS(uint8_t Start, uint8_t End, uint8_t Data) //Write same data to mu
     int i;
     CS_LOW;
     transfer(opcode);
-    SysCtlDelay(80); //Delay added to allow ADS to decode command
+    //Delay added to allow ADS to decode command
+    delay_us(2);
     transfer(End);
-    SysCtlDelay(80);
+    delay_us(2);
     for (i = 0; i <= (End - Start); i++)
     {
         transfer(Data);
-        SysCtlDelay(80);
+        delay_us(2);
     }
     transfer(0x00);
     CS_HIGH;
@@ -102,7 +108,7 @@ void _RESET() //Command to Reset ADS (Can be used instead of pins)
 {
     CS_LOW;
     transfer(RESET);
-    SysCtlDelay(353);
+    delay_us(9);
     CS_HIGH;
     return;
 }
@@ -111,7 +117,7 @@ void _SDATAC()  //Command to allow modification of registers on ADS1299
 {
     CS_LOW;
     transfer(SDATAC);
-    SysCtlDelay(120);
+    delay_us(3);
     CS_HIGH;
     return;
 }
@@ -119,7 +125,7 @@ void _RDATAC() //Command to be able to exit register modification and start acqu
 {
     CS_LOW;
     transfer(RDATAC);
-    SysCtlDelay(120);
+    delay_us(3);
     CS_HIGH;
     return;
 }
@@ -142,78 +148,77 @@ void _STOP() //Command to stop sample acquisition. (Can be used instead of pins)
 
 void ADS1299_read_data(uint8_t NumDaisy)
 {
-    int i, j, k, numSamples, bytesSend;
-    int sampleCounter = 0;
+    int i, j, k, stat;
     int index = 0;
 
     //Setup is over so enter Read data continuous
     _RDATAC();
 
-    //Read CONFIG1 to determine the Data Sample Rate
-    switch (Registers[1])
-    {
-        case 0x95:      //500 SPS
-            numSamples = 10;
-            bytesSend = 240;
-            break;
-        case 0x94:      //1K SPS
-            numSamples = 20;
-            bytesSend = 480;
-            break;
-        case 0x93:      //2K SPS
-            numSamples = 40;
-            bytesSend = 960;
-            break;
-        case 0x92:      //4K SPS
-            numSamples = 80;
-            bytesSend = 1920;
-            break;
-        case 0x91:      //8K SPS
-            numSamples = 160;
-            bytesSend = 3840;
-            break;
-        default:        //Default Rate of the ADS1299 is 250 SPS
-            numSamples = 5;
-            bytesSend = 120;
-            break;
-    }
-    //Increase the number of bytes to include the status bytes
-    bytesSend += (3 * numSamples);
-    //Increase the number of bytes depending on how many ADS1299 are connected.
-    bytesSend *= NumDaisy;
     //Take Start high (Start Conversions)
     START_HIGH;
     //Delay stop first few samples from being zero
-    SysCtlDelay(5120000);
+    delay_ms(128);
 
-    while(sampleCounter < numSamples)
+    // Wait for DRDY
+    while(DRDY);
+
+    // For loop to go as many times as devices connected to Daisy Chain
+    for(i=0;i<NumDaisy;i++)
     {
-        // Wait for DRDY
-        while(DRDY);
-
-        // For loop to go as many times as devices connected to Daisy Chain
-        for(i=0;i<NumDaisy;i++)
+        CS_LOW;
+        /*
+         * Status Bytes
+         * 24 status bits is:
+         * (1100 + LOFF_STATP + LOFF_STATN + bits[4:7] of the GPIO register).
+         */
+        for(j=0;j<3;j++)
         {
-            CS_LOW;
-            //Status Bytes
-            for(j=0;j<3;j++)
+            uint8_t byte = transfer(0x00);
+            stat = (stat << 8) | byte;
+        }
+
+        //  Read 24 bits of channel data in 8 3 byte chunks
+        for(j=0;j<8;j++)
+        {
+            for(k=0;k<3;k++)
             {
-                ads_data[index] = transfer(0x00);
+                uint8_t byte = transfer(0x00);
+                ads_data[index] = byte;
+
+                channel_data[j] = (channel_data[j] << 8) | byte;
+
+                //usb_write(&ads_data[index],1);
+
                 index++;
             }
-
-            for(j=0;j<8;j++)
-            {
-                for(k=0;k<3;k++)
-                {
-                    ads_data[index] = transfer(0x00);
-                    index++;
-                }
-            }
-            CS_HIGH;
         }
-        sampleCounter++;
+
+        CS_HIGH;
+
+        for(j=0;j<8;j++) {
+            if (((channel_data[j] >> 23) & 0x01) == 1) {
+                channel_data[j] |= 0xFF000000;
+                channel_data[j] *= LSB;
+            }
+            else {
+                channel_data[j] &= 0x00FFFFFF;
+                channel_data[j] *= LSB;
+            }
+        }
+
+        for(j=0;j<24;j++) {
+            if (((ads_data[j] >> 7) & 0x01) == 1) {
+                ads_data[j] |= 0xFF00;
+                ads_data[j] *= LSB;
+            }
+            else {
+                ads_data[j] &= 0x00FF;
+                ads_data[j] *= LSB;
+            }
+        }
+
     }
+    index = 0;
     START_LOW;
     return;
 
@@ -221,7 +226,7 @@ void ADS1299_read_data(uint8_t NumDaisy)
 
 void TEST() //Setup ADS to acquire internal test signals
 {
-    WriteREG(CONFIG2, 0xD0);       //Modify Config2 for test signals
+    WriteREG(CONFIG2, 0xD3);       //Modify Config2 for test signals
     WriteREGS(CH1SET, CH8SET, Registers[5] | 0x05); //Modify all channels for test signals
     ReadREG(CONFIG2);              //Read back written values
     ReadREGS(CH1SET, CH8SET);
@@ -275,9 +280,9 @@ void ADS1299_init(uint32_t ui32SysClock)
     {
     }
 
-    MAP_SSIConfigSetExpClk(SSI0_BASE, ui32SysClock, SSI_FRF_MOTO_MODE_1, //15 MHz clock, clock phase 0 polarity 1
+    MAP_SSIConfigSetExpClk(SSI0_BASE, ui32SysClock, SSI_FRF_MOTO_MODE_1, //12 MHz clock, clock phase 0 polarity 1
     SSI_MODE_MASTER,
-                          (ui32SysClock / 8), 8);
+                          (ui32SysClock / 10), 8);
     MAP_SSIEnable(SSI0_BASE);
 
     /* Flush the Receive FIFO */
@@ -290,4 +295,3 @@ void ADS1299_init(uint32_t ui32SysClock)
 }
 
 //end of ADS functions
-

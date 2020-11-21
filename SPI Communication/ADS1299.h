@@ -4,23 +4,26 @@
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
 
 uint8_t transfer(uint8_t Byte1);
-void ReadREG(uint8_t Start);
+void ADS1299_init(uint32_t ui32SysClock);
+
+uint8_t ReadREG(uint8_t Start);
 void ReadREGS(uint8_t Start, uint8_t End);
 void WriteREG(uint8_t Start, uint8_t Data);
 void WriteREGS(uint8_t Start, uint8_t End, uint8_t Data);
-void _RESET();
-void _SDATAC();
+
 void _START();
-void ADSTEST(uint32_t numsamples, uint32_t bytesSend);
 void _STOP();
+void _RESET();
+
+void _SDATAC();
 void _RDATAC();
-void TEST();
-void NORM();
-void ADS1299_init(uint32_t ui32SysClock);
 void ADS1299_read_data(uint8_t NumDaisy);
 
-//All of these next commands are SPI commands
+void TEST();
+void NORM();
 
+
+//All of these next commands are SPI commands
 //System Commands
 #define RESET   0x06    //Command to reset the ADS
 #define START   0x08    //Command to Start samples
@@ -59,10 +62,16 @@ void ADS1299_read_data(uint8_t NumDaisy);
 #define LOFF_SENSN  0x10
 #define LOFF_FLIP   0x11
 
+/* Data conversion helper */
+// 1 LSB
+#define LSB     (double)(2*VREF/GAIN)/16777216
+#define VREF    4500
+#define GAIN    1
+
 extern uint8_t Registers[24];
 extern uint8_t NumDaisy;
-extern uint32_t ads_data[28];
-extern bool TXComplete;
+extern uint8_t ads_data[24];
+extern int channel_data[9];
 
 // Delay Functions assuming 120 MHz
 #define delay_ms(x)     __delay_cycles((long) x* 120000)
