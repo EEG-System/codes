@@ -22,6 +22,7 @@
  * PA2 -> SCKL
  * PA4 -> DIN
  * PA5 -> DOUT
+ *
  */
 
 //ADS functions
@@ -185,9 +186,9 @@ void ADS1299_read_data(uint8_t NumDaisy)
                 uint8_t byte = transfer(0x00);
                 ads_data[index] = byte;
 
-                channel_data[j] = (channel_data[j] << 8) | byte;
+                //channel_data[j] = (channel_data[j] << 8) | byte;
 
-                //usb_write(&ads_data[index],1);
+                usb_write(&ads_data[index],1);
 
                 index++;
             }
@@ -195,27 +196,21 @@ void ADS1299_read_data(uint8_t NumDaisy)
 
         CS_HIGH;
 
-        for(j=0;j<8;j++) {
-            if (((channel_data[j] >> 23) & 0x01) == 1) {
-                channel_data[j] |= 0xFF000000;
-                channel_data[j] *= LSB;
-            }
-            else {
-                channel_data[j] &= 0x00FFFFFF;
-                channel_data[j] *= LSB;
-            }
-        }
+//
+//        for(j=0;j<8;j++) {
+//            if (((channel_data[j] >> 23) & 0x01) == 1) {
+//                channel_data[j] |= 0x000000;
+//                channel_data[j] *= LSB;
+//                usb_write(&channel_data[i], 1);
+//            }
+//            else {
+//                channel_data[j] &= 0xFFFFFF;
+//                channel_data[j] *= LSB;
+//                usb_write(&channel_data[i], 1);
+//            }
+//        }
 
-        for(j=0;j<24;j++) {
-            if (((ads_data[j] >> 7) & 0x01) == 1) {
-                ads_data[j] |= 0xFF00;
-                ads_data[j] *= LSB;
-            }
-            else {
-                ads_data[j] &= 0x00FF;
-                ads_data[j] *= LSB;
-            }
-        }
+
 
     }
     index = 0;
@@ -226,7 +221,7 @@ void ADS1299_read_data(uint8_t NumDaisy)
 
 void TEST() //Setup ADS to acquire internal test signals
 {
-    WriteREG(CONFIG2, 0xD3);       //Modify Config2 for test signals
+    WriteREG(CONFIG2, 0xD0);       //Modify Config2 for test signals
     WriteREGS(CH1SET, CH8SET, Registers[5] | 0x05); //Modify all channels for test signals
     ReadREG(CONFIG2);              //Read back written values
     ReadREGS(CH1SET, CH8SET);

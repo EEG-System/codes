@@ -71,7 +71,7 @@ void NORM();
 extern uint8_t Registers[24];
 extern uint8_t NumDaisy;
 extern uint8_t ads_data[24];
-extern int channel_data[9];
+extern int channel_data[8];
 
 // Delay Functions assuming 120 MHz
 #define delay_ms(x)     __delay_cycles((long) x* 120000)
