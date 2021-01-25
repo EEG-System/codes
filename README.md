@@ -2,6 +2,8 @@
 
 This section will be where to upload code.
 
+ - LCD Library
+   > Liquid-crystal display (LCD) library for the MSP432E401Y.
  - SPI Communication
    > Separate SPI code that works for ADS1299 with the MSP432E401Y.
  - USB Communication 
