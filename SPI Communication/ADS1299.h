@@ -6,6 +6,7 @@
 uint8_t transfer(uint8_t Byte1);
 void ADS1299_init(uint32_t ui32SysClock);
 
+
 uint8_t ReadREG(uint8_t Start);
 void ReadREGS(uint8_t Start, uint8_t End);
 void WriteREG(uint8_t Start, uint8_t Data);
@@ -21,6 +22,7 @@ void ADS1299_read_data(uint8_t NumDaisy);
 
 void TEST();
 void NORM();
+//void SHORT();
 
 
 //All of these next commands are SPI commands
@@ -66,12 +68,12 @@ void NORM();
 // 1 LSB
 #define LSB     (double)(2*VREF/GAIN)/16777216
 #define VREF    4500
-#define GAIN    1
+#define GAIN    24
 
 extern uint8_t Registers[24];
 extern uint8_t NumDaisy;
 extern uint8_t ads_data[24];
-extern int channel_data[8];
+extern uint32_t channel_data[8];
 
 // Delay Functions assuming 120 MHz
 #define delay_ms(x)     __delay_cycles((long) x* 120000)

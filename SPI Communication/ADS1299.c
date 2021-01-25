@@ -152,16 +152,18 @@ void ADS1299_read_data(uint8_t NumDaisy)
     int i, j, k, stat;
     int index = 0;
 
-    //Setup is over so enter Read data continuous
-    _RDATAC();
+    delay_us(9);
+    _SDATAC();
 
     //Take Start high (Start Conversions)
     START_HIGH;
     //Delay stop first few samples from being zero
-    delay_ms(128);
+
+    _RDATAC();  // Put the Device Back in RDATAC Mode
 
     // Wait for DRDY
     while(DRDY);
+
 
     // For loop to go as many times as devices connected to Daisy Chain
     for(i=0;i<NumDaisy;i++)
@@ -186,8 +188,6 @@ void ADS1299_read_data(uint8_t NumDaisy)
                 uint8_t byte = transfer(0x00);
                 ads_data[index] = byte;
 
-                //channel_data[j] = (channel_data[j] << 8) | byte;
-
                 usb_write(&ads_data[index],1);
 
                 index++;
@@ -196,34 +196,20 @@ void ADS1299_read_data(uint8_t NumDaisy)
 
         CS_HIGH;
 
-//
-//        for(j=0;j<8;j++) {
-//            if (((channel_data[j] >> 23) & 0x01) == 1) {
-//                channel_data[j] |= 0x000000;
-//                channel_data[j] *= LSB;
-//                usb_write(&channel_data[i], 1);
-//            }
-//            else {
-//                channel_data[j] &= 0xFFFFFF;
-//                channel_data[j] *= LSB;
-//                usb_write(&channel_data[i], 1);
-//            }
-//        }
-
-
 
     }
     index = 0;
-    START_LOW;
-    return;
+    //_SDATAC();
+    //START_LOW;
 
 }
 
 void TEST() //Setup ADS to acquire internal test signals
 {
-    WriteREG(CONFIG2, 0xD0);       //Modify Config2 for test signals
-    WriteREGS(CH1SET, CH8SET, Registers[5] | 0x05); //Modify all channels for test signals
-    ReadREG(CONFIG2);              //Read back written values
+    WriteREG(CONFIG2, 0xD0);          //Modify Config2 for test signals
+    //WriteREG(CONFIG3, 0xE0);        // If Using Internal Reference, Send This Comman
+    WriteREGS(CH1SET, CH8SET, 0x05); //Modify all channels for test signals
+    ReadREG(CONFIG2);                  //Read back written values
     ReadREGS(CH1SET, CH8SET);
     return;
 }
@@ -231,7 +217,15 @@ void TEST() //Setup ADS to acquire internal test signals
 void NORM() //Setup ADS for normal operation
 {
     WriteREG(CONFIG2, 0xC0);       //Modify Config2 for normal signals
-    WriteREGS(CH1SET, CH8SET, Registers[5] & 0xF8);
+    WriteREGS(CH1SET, CH8SET, 0x00);
+    ReadREG(CONFIG2);              //Read back written values
+    ReadREGS(CH1SET, CH8SET);
+}
+
+void SHORT() //Setup ADS for normal operation
+{
+    WriteREG(CONFIG2, 0xC0);       //Modify Config2 for normal signals
+    WriteREGS(CH1SET, CH8SET, 0x01);
     ReadREG(CONFIG2);              //Read back written values
     ReadREGS(CH1SET, CH8SET);
 }
@@ -241,7 +235,7 @@ void ADS1299_init(uint32_t ui32SysClock)
     uint32_t bytesSend = 0;
 
     //ADS Stuff Setup
-    delay_ms(128); //128ms delay needed to ensure the voltages on ADS1299 have stabilized
+    //delay_ms(131); //128ms delay needed to ensure the voltages on ADS1299 have stabilized
 
     //Port that is going to be used to toggle a few of the pins.
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
@@ -253,8 +247,10 @@ void ADS1299_init(uint32_t ui32SysClock)
     GPIOPinTypeGPIOOutput(GPIO_PORTL_BASE, GPIO_PIN_2); //CS pin
     GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_3);  //DRDY pin
 
+    // Delay for Power-On Reset and Oscillator Start-Up
     GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_1, GPIO_PIN_1); //Take RESET high
     GPIOPinWrite(GPIO_PORTL_BASE, GPIO_PIN_2, GPIO_PIN_2); //Take CS high
+    delay_ms(131);//128ms delay needed to ensure the voltages on ADS1299 have stabilized
 
     /* Enable clocks to GPIO Port A and configure pins as SSI */
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
@@ -277,16 +273,14 @@ void ADS1299_init(uint32_t ui32SysClock)
 
     MAP_SSIConfigSetExpClk(SSI0_BASE, ui32SysClock, SSI_FRF_MOTO_MODE_1, //12 MHz clock, clock phase 0 polarity 1
     SSI_MODE_MASTER,
-                          (ui32SysClock / 10), 8);
+                          (ui32SysClock/10),8);
     MAP_SSIEnable(SSI0_BASE);
 
     /* Flush the Receive FIFO */
     while (MAP_SSIDataGetNonBlocking(SSI0_BASE, &bytesSend));
     //SPI setup is complete
 
-    _RESET();
-    _SDATAC(); //Enter SDATAC and don't exit until told to by computer
-    ReadREGS(0x00, 0x17); //Read All Registers
+    //ReadREGS(0x00, 0x17); //Read All Registers
 }
 
 //end of ADS functions
