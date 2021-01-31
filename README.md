@@ -2,6 +2,8 @@
 
 This section will be where to upload code.
 
+ - Data Interpretation
+   > Folder containing Python used to plot the data acquired from the ADS1299.
  - LCD Library
    > Liquid-crystal display (LCD) library for the MSP432E401Y.
  - SPI Communication
