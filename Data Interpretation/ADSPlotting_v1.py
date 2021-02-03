@@ -1,3 +1,5 @@
+# Created by: Jose C. Dominguez
+
 import matplotlib.pyplot as plt
 
 
