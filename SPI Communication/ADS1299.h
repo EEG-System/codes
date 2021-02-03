@@ -2,11 +2,11 @@
 #define ADS1299_H_
 
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
-/*
-*
-* Created by: Jose C. Dominguez
-*
-*/
+// SPI Communication between MSP432E to ADS1299
+// by: Jose C. Dominguez
+//
+//
+
 uint8_t transfer(uint8_t Byte1);
 void ADS1299_init(uint32_t ui32SysClock);
 
