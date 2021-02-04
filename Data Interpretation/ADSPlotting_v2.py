@@ -33,7 +33,7 @@ def follow(thefile):
     plt.show()
     
    
-    thefile.seek(0,2)
+    thefile.seek(0,1)
     while True:
         # two dimension array 2x8 where to save every channel data
 
