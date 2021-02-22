@@ -1,3 +1,5 @@
+ - ADSPlotting_v1.5.py
+   > Version 1.5 does the same as Version 1 but utilizing moving average to clean-up noise.
 
  - ADSPlotting_v1.py
    > This script will plot the data from a text document, in this case the data saved from the ADS1299 to a text file.
