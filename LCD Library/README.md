@@ -1,0 +1,1 @@
+- The following files include a header file and c file with the complete functionality of the lcd library intended for the MSP432E401Y. All of the functions and functional usage of the library are exactly the same as for the MSP432P401R. The connections for the MSP432E401Y can be seen within the header file
