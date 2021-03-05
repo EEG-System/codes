@@ -1,13 +1,17 @@
 # Created by: Jose C. Dominguez
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import array as arr
-
-
+import random, os 
 # to open the text document containing the ADS1299-ADCs
 file = open('sampleText.txt', 'rb')
+os.system("cls")
+n = input("\u001b[34;1mHow many ADS?\u001b[0m\n")
+
 # two dimension array 2x8 where to save every channel data
-channel_data = [[],[],[],[],[],[],[],[]]
+CHANNELS = 8*int(n) 
+channel_data = [[]*1 for i in range(CHANNELS)]
 
 one_channel = 0
 three_bytes = 0
@@ -16,13 +20,11 @@ LSB = (2*4500/24)/16777216
 data = 0
 
 # 2D array
-SAMPLES = 10
-CHANNELS = 8 
+SAMPLES = 3
 moving_avg_ch = [ [0]*SAMPLES for i in range(CHANNELS)]
 n=0
 count=0
 mo_avg_value=0
-
 
 # loop to read every element of the file
 char = file.read()
@@ -55,15 +57,18 @@ for c in char:
     
 file.close()
 
-
 # plotting ...
-fig, axs = plt.subplots(8, sharex='col')
+fig, axs = plt.subplots(CHANNELS, sharex=True, sharey=False)
 fig.suptitle('DATA ACQUIRED (reading 24 by 24 bits)')
 fig.text(0.5, 0.04, 'Samples', ha='center')
 fig.text(0.04, 0.5, 'Volts', va='center', rotation='vertical')
 
-for i in range(8):
-    axs[i].plot(channel_data[i], label = 'ch{}'.format(i+1), color='C{}'.format(i+1))
+for i in range(CHANNELS):
+    r = random.random()
+    b = random.random()
+    g = random.random()
+    color = (r, g, b)
+    axs[i].plot(channel_data[i], label = 'ch{}'.format(i+1), c=color) #color='C{}'.format(i+1)
     axs[i].legend()
     axs[i].spines["top"].set_visible(False)
     axs[i].spines["right"].set_visible(False)
