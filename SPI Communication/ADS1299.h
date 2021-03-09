@@ -2,13 +2,9 @@
 #define ADS1299_H_
 
 #include <ti/devices/msp432e4/driverlib/driverlib.h>
-// SPI Communication between MSP432E to ADS1299
-// by: Jose C. Dominguez
-//
-//
 
 uint8_t transfer(uint8_t Byte1);
-void ADS1299_init(uint32_t ui32SysClock);
+void SPI_ADS_init(uint32_t ui32SysClock);
 
 
 uint8_t ReadREG(uint8_t Start);
@@ -26,8 +22,10 @@ void ADS1299_read_data(uint8_t NumDaisy);
 
 void TEST();
 void NORM();
-//void SHORT();
+void SHORTY();
 
+void ADS_status();
+void gain_Check();
 
 //All of these next commands are SPI commands
 //System Commands
@@ -68,11 +66,18 @@ void NORM();
 #define LOFF_SENSN  0x10
 #define LOFF_FLIP   0x11
 
+/* GPIO and OTHER Register */
+#define GPIO        0x14
+#define MISC1       0x15
+#define MISC2       0x16
+#define CONFIG4     0x17
+
 /* Data conversion helper */
 // 1 LSB
-#define LSB     (double)(2*VREF/GAIN)/16777216
 #define VREF    4500
 #define GAIN    24
+#define LSB     (double)(2*VREF/GAIN)/16777216
+
 
 extern uint8_t Registers[24];
 extern uint8_t NumDaisy;
